@@ -1,21 +1,37 @@
 version: "3"
 services:
-    # start the ganache cli container
-    ganache-cli:
-        container_name: ganache-cli
-        build:
-            context: ./docker/ganache-cli
+    ganache:
+        container_name: ganache
+        image: alpine:latest
+        command: >
+            /bin/sh -c "
+                apk add --no-cache bash
+                apk add --update npm
+                npm install ganache-cli@latest --global
+                ganache-cli --fork https://polygon-mainnet.infura.io/v3/${WEB3_INFURA_PROJECT_ID} --hostname 0.0.0.0
+            "
+        # ports:
+        #   - 8545:8545
         restart: always
     brownie:
         depends_on:
-            - ganache-cli
+            - ganache
         container_name: brownie
-        build:
-            context: ./docker/brownie
+        image: python:3.7
+        command: >
+            /bin/bash -c "
+                mkdir -p /usr/src/app
+                apt update
+                apt -y upgrade
+                apt-get install -y libssl-dev
+                apt-get install -y npm
+                npm install -g ganache-cli
+                apt install -y python3-pip
+                pip3 install eth-brownie
+                brownie networks add Development dev cmd=ganache-cli host=http://ganache:8545
+                tail -f /dev/null
+            "
         volumes:
             - "./workspace:/usr/src/app"
-        environment:
-            WEB3_INFURA_PROJECT_ID: ${WEB3_INFURA_PROJECT_ID}
         stdin_open: true # docker run -i
         tty: true # docker run -t
-        restart: always
